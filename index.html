@@ -337,7 +337,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <div class="tnps-card derivadas-card">
       <div>
         <div class="tc-label"><span class="tc-ico">📢</span>Derivación a Encuestas</div>
-        <div class="tc-sec-title">Total derivadas a encuesta:</div>
+        <div class="tc-sec-title">Total derivadas a Survey:</div>
       </div>
       <div>
         <div class="tc-sec-row">
@@ -625,7 +625,7 @@ async function inicializarDatos() {
       const scoreRaw = row[COL_NPS];
       if (!scoreRaw || scoreRaw === '-') return;
       const score = parseFloat(scoreRaw);
-      if (isNaN(score) || score < 1 || score > 10) return;
+      if (isNaN(score) || score < 0 || score > 10) return;
 
       const scoreInt = Math.round(score);
       const tipo = clasificarNPS(scoreInt);
