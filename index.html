@@ -194,13 +194,18 @@ header{
   max-height:330px;overflow-y:auto;border:1px solid var(--border2);border-radius:12px;
   background:var(--bg2);
 }
-table{width:100%;border-collapse:collapse;text-align:left;font-size:13px;}
+table{width:100%;border-collapse:collapse;text-align:left;font-size:12px;}
 th{
   background:var(--card2);color:var(--muted2);font-family:'Rajdhani',sans-serif;
-  font-weight:600;text-transform:uppercase;letter-spacing:1px;padding:12px 14px;
+  font-weight:600;text-transform:uppercase;letter-spacing:1px;padding:10px 10px;
   position:sticky;top:0;border-bottom:1px solid var(--border2);
+  white-space:nowrap;
 }
-td{padding:12px 14px;border-bottom:1px solid var(--border);vertical-align:middle;}
+th.sortable{cursor:pointer;user-select:none;transition:color .15s;}
+th.sortable:hover{color:var(--text);}
+th.sort-asc::after{content:' ↑';color:var(--accent);}
+th.sort-desc::after{content:' ↓';color:var(--accent);}
+td{padding:10px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
 tr:last-child td{border-bottom:none;}
 tr:hover td{background:rgba(255,255,255,0.02);}
 
@@ -337,7 +342,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <div class="tnps-card derivadas-card">
       <div>
         <div class="tc-label"><span class="tc-ico">📢</span>Derivación a Encuestas</div>
-        <div class="tc-sec-title">Total derivadas a Encuesta:</div>
+        <div class="tc-sec-title">Total derivadas a Encuestas:</div>
       </div>
       <div>
         <div class="tc-sec-row">
@@ -389,12 +394,16 @@ tr:hover td{background:rgba(255,255,255,0.02);}
       <div class="table-wrap">
         <table id="rankingTable">
           <thead>
-            <tr>
-              <th style="width:70px;text-align:center;">Puesto</th>
-              <th>Asesor</th>
-              <th style="text-align:center;width:70px;">Encuestas</th>
-              <th style="text-align:center;width:80px;">Atend.</th>
-              <th style="text-align:center;width:80px;">TNPS</th>
+            <tr id="rankingHeader">
+              <th style="width:52px;text-align:center;">Puesto</th>
+              <th class="sortable" data-col="nombre" style="min-width:160px;">Asesor</th>
+              <th class="sortable" data-col="enc" style="text-align:center;width:62px;">Enc.</th>
+              <th class="sortable" data-col="prom" style="text-align:center;width:52px;">Prom.</th>
+              <th class="sortable" data-col="neut" style="text-align:center;width:52px;">Neut.</th>
+              <th class="sortable" data-col="det" style="text-align:center;width:52px;">Det.</th>
+              <th class="sortable" data-col="cortes" style="text-align:center;width:60px;">Cortes</th>
+              <th class="sortable" data-col="atend" style="text-align:center;width:62px;">Atend.</th>
+              <th class="sortable" data-col="tnps" style="text-align:center;width:72px;">TNPS</th>
             </tr>
           </thead>
           <tbody id="rankingBody">
@@ -846,11 +855,42 @@ function renderDash() {
   document.getElementById('dashScreen').style.display  = 'block';
 }
 
+// ── Sorting state ─────────────────────────────────────────────────────────
+let sortCol = 'tnps';   // default
+let sortDir = -1;       // -1 = desc (mayor primero), +1 = asc
+
 function switchRanking(tab) {
   document.getElementById('tabDay').classList.toggle('active', tab === 'day');
   document.getElementById('tabMes').classList.toggle('active', tab === 'mes');
   currentRankingTab = tab;
+  sortCol = 'tnps'; sortDir = -1; // reset al cambiar pestaña
+  updateSortHeaders();
   renderRankingTable();
+}
+
+function updateSortHeaders() {
+  document.querySelectorAll('#rankingHeader th.sortable').forEach(th => {
+    th.classList.remove('sort-asc','sort-desc');
+    if (th.dataset.col === sortCol) {
+      th.classList.add(sortDir === -1 ? 'sort-desc' : 'sort-asc');
+    }
+  });
+}
+
+function setupSortableHeaders() {
+  document.querySelectorAll('#rankingHeader th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      if (sortCol === th.dataset.col) {
+        sortDir *= -1;
+      } else {
+        sortCol = th.dataset.col;
+        // Texto: asc por defecto; números: desc por defecto
+        sortDir = (sortCol === 'nombre') ? 1 : -1;
+      }
+      updateSortHeaders();
+      renderRankingTable();
+    });
+  });
 }
 
 function renderRankingTable() {
@@ -858,66 +898,65 @@ function renderRankingTable() {
   const body = document.getElementById('rankingBody');
   body.innerHTML = '';
 
-  let list = [...s.asesores];
+  const isDay = currentRankingTab === 'day';
+  let list = s.asesores.map(a => {
+    const m = isDay ? a.dia : a.mes;
+    return { a, enc: m.total, prom: m.prom, neut: m.pas, det: m.det, cortes: m.cortes, atend: m.atendidas, tnps: m.tnps };
+  });
 
-  if (currentRankingTab === 'day') {
-    // Ordenar ranking día: Mayor TNPS, secundario mayor cantidad de encuestas
-    list.sort((x, y) => {
-      if (x.dia.total === 0 && y.dia.total === 0) return 0;
-      if (x.dia.total === 0) return 1;
-      if (y.dia.total === 0) return -1;
-      if (y.dia.tnps !== x.dia.tnps) return y.dia.tnps - x.dia.tnps;
-      return y.dia.total - x.dia.total;
-    });
-  } else {
-    // Ordenar ranking mes: Mayor TNPS, secundario mayor cantidad de encuestas
-    list.sort((x, y) => {
-      if (x.mes.total === 0 && y.mes.total === 0) return 0;
-      if (x.mes.total === 0) return 1;
-      if (y.mes.total === 0) return -1;
-      if (y.mes.tnps !== x.mes.tnps) return y.mes.tnps - x.mes.tnps;
-      return y.mes.total - x.mes.total;
-    });
-  }
+  // Ordenar
+  list.sort((x, y) => {
+    let va, vb;
+    if (sortCol === 'nombre') {
+      va = x.a.nombre; vb = y.a.nombre;
+      return sortDir * va.localeCompare(vb);
+    }
+    va = x[sortCol] ?? (sortCol === 'tnps' ? -9999 : -1);
+    vb = y[sortCol] ?? (sortCol === 'tnps' ? -9999 : -1);
+    // Asesores sin encuestas siempre al fondo cuando se ordena por TNPS
+    if (sortCol === 'tnps') {
+      if (x.enc === 0 && y.enc === 0) return 0;
+      if (x.enc === 0) return 1;
+      if (y.enc === 0) return -1;
+    }
+    return sortDir * (va - vb);
+  });
 
   if (list.length === 0) {
-    body.innerHTML = '<tr><td colspan="5" class="no-data-msg">No hay asesores asignados.</td></tr>';
+    body.innerHTML = '<tr><td colspan="9" class="no-data-msg">No hay asesores asignados.</td></tr>';
     return;
   }
 
-  list.forEach((a, index) => {
-    const isDay = currentRankingTab === 'day';
-    const totalEncuestas = isDay ? a.dia.total : a.mes.total;
-    const atendidas = isDay ? a.dia.atendidas : a.mes.atendidas;
-    const tnpsVal = isDay ? a.dia.tnps : a.mes.tnps;
-
-    // Formatear Clase de Color del TNPS
-    let colorClass = 'none';
-    let tnpsString = '—';
-    if (totalEncuestas > 0 && tnpsVal !== null) {
-      tnpsString = tnpsVal.toFixed(2) + '%';
-      if (tnpsVal >= 82) colorClass = 'green';
-      else if (tnpsVal >= 70) colorClass = 'yellow';
+  list.forEach(({ a, enc, prom, neut, det, cortes, atend, tnps }, index) => {
+    let colorClass = 'none', tnpsString = '—';
+    if (enc > 0 && tnps !== null) {
+      tnpsString = tnps.toFixed(2) + '%';
+      if (tnps >= 82) colorClass = 'green';
+      else if (tnps >= 70) colorClass = 'yellow';
       else colorClass = 'red';
     }
 
-    // Estilo de puesto
-    let rankBadge = '';
     const num = index + 1;
+    let rankBadge;
     if (num === 1) rankBadge = `<span class="rank-badge rank-1">#1</span>`;
     else if (num === 2) rankBadge = `<span class="rank-badge rank-2">#2</span>`;
     else if (num === 3) rankBadge = `<span class="rank-badge rank-3">#3</span>`;
     else rankBadge = `<span class="rank-badge rank-other">${num}</span>`;
 
     const row = document.createElement('tr');
+    const mono = `font-family:'JetBrains Mono',monospace;font-weight:600;text-align:center;`;
     row.innerHTML = `
       <td style="text-align:center;">${rankBadge}</td>
       <td>
         <span class="rank-name">${a.nombre}</span>
         <span class="rank-id">${a.usuario}</span>
       </td>
-      <td style="text-align:center;font-family:'JetBrains Mono',monospace;font-weight:600;">${totalEncuestas}</td>
-      <td style="text-align:center;font-family:'JetBrains Mono',monospace;color:var(--muted2);">${atendidas}</td>
+      <td style="${mono}">${enc}</td>
+      <td style="${mono}color:var(--green);">${prom}</td>
+      <td style="${mono}color:var(--yellow);">${neut}</td>
+      <td style="${mono}color:var(--red);">${det}</td>
+      <td style="${mono}color:var(--muted2);">${cortes}</td>
+      <td style="${mono}color:var(--blue);">${atend}</td>
       <td style="text-align:center;"><span class="rank-tnps ${colorClass}">${tnpsString}</span></td>
     `;
     body.appendChild(row);
@@ -929,7 +968,11 @@ function salir() {
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('userInput').value = '';
   currentSupervisor = null;
+  sortCol = 'tnps'; sortDir = -1;
 }
+
+// Inicializar eventos de ordenamiento
+setupSortableHeaders();
 </script>
 </body>
 </html>
