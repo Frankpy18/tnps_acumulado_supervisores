@@ -971,6 +971,29 @@ function salir() {
   sortCol = 'tnps'; sortDir = -1;
 }
 
+// Bloquear combinaciones de teclas comunes para DevTools
+document.addEventListener('keydown', function(e) {
+  // Bloquear F12
+  if (e.key === 'F12' || e.keyCode === 123) {
+    e.preventDefault();
+  }
+  
+  // Bloquear Ctrl+Shift+I (Windows/Linux) o Cmd+Opt+I (Mac) - Inspector
+  if ((e.ctrlKey && e.shiftKey && e.key === 'I') || (e.metaKey && e.altKey && e.key === 'i')) {
+    e.preventDefault();
+  }
+  
+  // Bloquear Ctrl+Shift+J (Windows/Linux) o Cmd+Opt+J (Mac) - Consola
+  if ((e.ctrlKey && e.shiftKey && e.key === 'J') || (e.metaKey && e.altKey && e.key === 'j')) {
+    e.preventDefault();
+  }
+  
+  // Bloquear Ctrl+U (Windows/Linux) o Cmd+U (Mac) - Ver código fuente
+  if ((e.ctrlKey && e.key === 'U') || (e.metaKey && e.key === 'u')) {
+    e.preventDefault();
+  }
+});
+
 // Inicializar eventos de ordenamiento
 setupSortableHeaders();
 </script>
